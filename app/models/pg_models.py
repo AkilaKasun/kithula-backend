@@ -14,6 +14,16 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+#IMAGE UPLOAD
+class FileStorage(Base):
+    __tablename__ = 'file_storage'
+
+    id = Column(Integer, primary_key=True, index=True)
+    file_name = Column(String(255), nullable=False)      # Original name (e.g., "kithul_podi.png")
+    s3_key = Column(String(500), nullable=False, unique=True) # Unique S3 path/key for deletion tracking
+    image_url = Column(String(500), nullable=False)     # Public URL used to display the image on the frontend
+    bucket_name = Column(String(100), nullable=False)   # Target bucket name (e.g., kithula1-s3-storage1)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 #PRODUCT MODULE
 class Product(Base):
@@ -25,10 +35,15 @@ class Product(Base):
     price = Column(Numeric(10, 2), nullable=False)
     stock = Column(Integer, nullable=False, default=0)
     category = Column(String(100), nullable=False)
-    image_url = Column(String(500), nullable=True)  # Populated asynchronously by S3 Utility
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Foreign Key pointing to the FileStorage table
+    file_id = Column(Integer, ForeignKey('file_storage.id', ondelete='SET NULL'), nullable=True)
+
+    # Relationship to cleanly pull image details
+    image = relationship("FileStorage")
 
 #CART MODULE
 class Cart(Base):
