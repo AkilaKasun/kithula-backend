@@ -40,7 +40,10 @@ class User():
             user = db.query(pg_models.User).filter(pg_models.User.username==request.username).first()
 
             if not user or not verify_password(request.password,user.hashed_password):
-                return ErrorResponseModel("Username or Password Incorrect.",400)
+                return ErrorResponseModel("Username or Password Incorrect.",401)
+
+            if not user.is_active:
+                return ErrorResponseModel("This account has been deactivated.", 403)
 
             token_payload = {"sub": str(user.username)}
             access_token = create_access_token(data=token_payload)
