@@ -9,8 +9,9 @@ class User(Base):
     __tablename__ = 'user'
 
     id = Column(Integer, primary_key=True)
-    username = Column(String(100), nullable=False)
-    password = Column(String(100), nullable=False)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -41,7 +42,12 @@ class Product(Base):
 
     # Foreign Key pointing to the FileStorage table
     file_id = Column(Integer, ForeignKey('file_storage.id', ondelete='SET NULL'), nullable=True)
+    # Changed ondelete from 'SET NULL' to 'CASCADE'
+    created_by = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
 
+
+    # Relationship remains the same
+    creator = relationship("User")
     # Relationship to cleanly pull image details
     image = relationship("FileStorage")
 

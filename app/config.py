@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     AWS_BUCKET_NAME: str = os.getenv("AWS_BUCKET_NAME", "kithula1-s3-storage1")
     AWS_REGION: str = os.getenv("AWS_REGION", "eu-north-1")
 
+    #JWT SECRET KEYS
+    SECRET_KEY: str = os.getenv("SECRET_KEY")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+
     @property
     def SQLALCHEMY_DATABASE_URL(self) -> str:
         return f"{self.DB_CONNECTION}://{self.POSTGRES_USERNAME}:{self.POSTGRES_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.POSTGRES_DB}"

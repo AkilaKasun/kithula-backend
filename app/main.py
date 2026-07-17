@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from app.db import init_model
 from app.db.postgresDB import db_connection
 
+from app.routers.user_routes import user_router
 @asynccontextmanager
 async def lifespan(app: FastAPI): #start app fast api
     init_model() #call database creation
@@ -17,7 +18,7 @@ app = FastAPI(
 
 )
 
-
+app.include_router(user_router)
 
 @app.get("/")
 def home():
