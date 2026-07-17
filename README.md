@@ -68,7 +68,7 @@ DB_PORT=5432
 # AWS_CONNECTION
 AWS_ACCESS_KEY_ID=your_aws_access_key_here
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key_here
-AWS_BUCKET_NAME=kithula1-s3-storage1
+AWS_BUCKET_NAME=your aws bucket name
 AWS_REGION=eu-north-1
 
 # JWT_SECRETKEY
