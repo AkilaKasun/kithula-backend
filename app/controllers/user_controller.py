@@ -45,7 +45,9 @@ class User():
                 return ErrorResponseModel(error="Invalid username or password.", code=status.HTTP_401_UNAUTHORIZED)
 
             if not user.is_active:
-                return ErrorResponseModel(error="This account has been deactivated.", code=status.HTTP_403_FORBIDDEN)
+                user.is_active = True
+                db.commit()
+                db.refresh(user)
 
             token_payload = {"sub": str(user.user_id)}
             access_token = create_access_token(data=token_payload)
