@@ -8,7 +8,7 @@ from app.db.postgresDB import Base
 class User(Base):
     __tablename__ = 'user'
 
-    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
@@ -19,7 +19,7 @@ class User(Base):
 class FileStorage(Base):
     __tablename__ = 'file_storage'
 
-    id = Column(Integer, primary_key=True, index=True)
+    file_id = Column(Integer, primary_key=True, index=True)
     file_name = Column(String(255), nullable=False)      # Original name (e.g., "kithul_podi.png")
     s3_key = Column(String(500), nullable=False, unique=True) # Unique S3 path/key for deletion tracking
     image_url = Column(String(500), nullable=False)     # Public URL used to display the image on the frontend
@@ -30,7 +30,7 @@ class FileStorage(Base):
 class Product(Base):
     __tablename__ = 'products'
 
-    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False)
     description = Column(String(500), nullable=False)
     price = Column(Numeric(10, 2), nullable=False)
@@ -41,9 +41,9 @@ class Product(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Foreign Key pointing to the FileStorage table
-    file_id = Column(Integer, ForeignKey('file_storage.id', ondelete='SET NULL'), nullable=True)
+    file_id = Column(Integer, ForeignKey('file_storage.file_id', ondelete='SET NULL'), nullable=True)
     # Changed ondelete from 'SET NULL' to 'CASCADE'
-    created_by = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
+    created_by = Column(Integer, ForeignKey('user.user_id', ondelete='CASCADE'), nullable=True)
 
 
     # Relationship remains the same
@@ -66,9 +66,9 @@ class Cart(Base):
 class CartItem(Base):
     __tablename__ = 'cart_items'
 
-    id = Column(Integer, primary_key=True, index=True)
+    cart_item_id = Column(Integer, primary_key=True, index=True)
     cart_id = Column(Integer, ForeignKey('carts.cart_id', ondelete='CASCADE'), nullable=False)
-    product_id = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
     price = Column(Numeric(10, 2), nullable=False)  # Snapshot of price when added
 
@@ -107,9 +107,9 @@ class Order(Base):
 class OrderItem(Base):
     __tablename__ = 'order_items'
 
-    id = Column(Integer, primary_key=True, index=True)
+    order_item_id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey('orders.order_id', ondelete='CASCADE'), nullable=False)
-    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.product_id'), nullable=False)
     quantity = Column(Integer, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)  # Immutable historical purchase price
 

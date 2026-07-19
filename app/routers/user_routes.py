@@ -32,8 +32,11 @@ def login_user(
     return userObj.login_user(form_data, db)
 
 @user_router.post("/logout")
-def logout_user():
-    return userObj.logout_user(None)
+def logout_user(
+    db: Session = Depends(db_connection),
+    current_user: pg_models.User = Depends(get_current_user)
+):
+    return userObj.logout_user(db=db, current_user=current_user)
 
 @user_router.get("/me")
 def get_logged_in_user(
@@ -41,4 +44,4 @@ def get_logged_in_user(
     db: Session = Depends(db_connection)
 ):
     # Pass current_user.id as the target id to reuse the get_user_by_id logic cleanly
-    return userObj.get_user_by_id(id=current_user.id, current_user=current_user, db=db)
+    return userObj.get_user_by_id(user_id=current_user.user_id, current_user=current_user, db=db)

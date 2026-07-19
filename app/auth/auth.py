@@ -73,7 +73,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         )
 
     db: Session = next(db_connection())
-    user = db.query(pg_models.User).filter(pg_models.User.id == user_id_int).first()
+    user = db.query(pg_models.User).filter(pg_models.User.user_id == user_id_int).first()
 
     if user is None:
         raise HTTPException(

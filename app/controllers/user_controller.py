@@ -47,7 +47,7 @@ class User():
             if not user.is_active:
                 return ErrorResponseModel(error="This account has been deactivated.", code=status.HTTP_403_FORBIDDEN)
 
-            token_payload = {"sub": str(user.id)}
+            token_payload = {"sub": str(user.user_id)}
             access_token = create_access_token(data=token_payload)
 
             # CRITICAL: Return a completely flat dictionary layout at the root level
@@ -55,7 +55,7 @@ class User():
                 "access_token": access_token,
                 "token_type": "bearer",
                 "user": {
-                    "id": user.id,
+                    "id": user.user_id,
                     "username": user.username,
                     "email": user.email
                 }
@@ -96,27 +96,41 @@ class User():
     #     except Exception as e:
     #         print(str(e))
     #         return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
-    def logout_user(self, request):
+    from fastapi import status, HTTPException
+    from sqlalchemy.orm import Session
+
+    def logout_user(self, db: Session, current_user):
         try:
+            # 1. Find the user in the database using the passed db session
+            db_user = db.query(pg_models.User).filter(pg_models.User.user_id == current_user.user_id).first()
+            if not db_user:
+                return ErrorResponseModel(error="User not found.", code=status.HTTP_404_NOT_FOUND)
+
+            # 2. Make the user inactive
+            db_user.is_active = False
+            db.commit()
+            db.refresh(db_user)
+
             return SuccessResponseModel(data=None, message="Logout successful.")
+
         except Exception as e:
             print(str(e))
             return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
 
-    def get_user_by_id(self, id: int, current_user: pg_models.User, db: Session):
+    def get_user_by_id(self, user_id: int, current_user: pg_models.User, db: Session):
         try:
             # 1. Check if the executing user is active
             if not current_user.is_active:
                 return ErrorResponseModel(error="Your account is deactivated.", code=status.HTTP_403_FORBIDDEN)
 
             # 2. Query target user using the injected db session
-            user = db.query(pg_models.User).filter(pg_models.User.id == id).first()
+            user = db.query(pg_models.User).filter(pg_models.User.user_id == user_id).first()
             if not user:
                 return ErrorResponseModel(error="User not found.", code=status.HTTP_404_NOT_FOUND)
 
             # 3. Build response payload
             data = {
-                "id": user.id,
+                "id": user.user_id,
                 "username": user.username,
                 "email": user.email,
                 "is_active": user.is_active,
