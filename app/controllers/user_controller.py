@@ -1,4 +1,5 @@
 import jwt
+from fastapi import status
 from sqlalchemy.orm import Session
 
 from app.auth.auth import hash_password, verify_password, create_access_token
@@ -6,49 +7,51 @@ from app.db.postgresDB import db_connection
 from app.response.response_model import SuccessResponseModel, ErrorResponseModel
 from app.models import pg_models
 
-db:Session = next(db_connection())
+db: Session = next(db_connection())
+
 
 class User():
-    def create_user(self,request):
+    def create_user(self, request):
         try:
             existing_user = db.query(pg_models.User).filter(
                 (pg_models.User.email == request.email) | (pg_models.User.username == request.username)
             ).first()
             if existing_user:
-                return ErrorResponseModel("Username or Email already registered.",400)
+                return ErrorResponseModel(error="Username or Email already registered.",
+                                          code=status.HTTP_400_BAD_REQUEST)
 
             new_user = pg_models.User(
                 username=request.username,
                 email=request.email,
-                hashed_password = hash_password(request.password),
+                hashed_password=hash_password(request.password),
             )
 
             db.add(new_user)
             db.commit()
             db.refresh(new_user)
 
-            return SuccessResponseModel("User created successfully.",201)
+            # Fixed parameter placement: data first, then message, then custom code
+            return SuccessResponseModel(data=new_user, message="User created successfully.", code=status.HTTP_201_CREATED)
 
         except Exception as e:
             print(str(e))
-            return ErrorResponseModel(str(e), 400)
+            return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
 
-
-
-    def login_user(self,request):
+    def login_user(self, request, db: Session):
         try:
-            user = db.query(pg_models.User).filter(pg_models.User.username==request.username).first()
+            user = db.query(pg_models.User).filter(pg_models.User.username == request.username).first()
 
-            if not user or not verify_password(request.password,user.hashed_password):
-                return ErrorResponseModel("Username or Password Incorrect.",401)
+            if not user or not verify_password(request.password, user.hashed_password):
+                return ErrorResponseModel(error="Invalid username or password.", code=status.HTTP_401_UNAUTHORIZED)
 
             if not user.is_active:
-                return ErrorResponseModel("This account has been deactivated.", 403)
+                return ErrorResponseModel(error="This account has been deactivated.", code=status.HTTP_403_FORBIDDEN)
 
-            token_payload = {"sub": str(user.username)}
+            token_payload = {"sub": str(user.id)}
             access_token = create_access_token(data=token_payload)
 
-            data_payload = {
+            # CRITICAL: Return a completely flat dictionary layout at the root level
+            return {
                 "access_token": access_token,
                 "token_type": "bearer",
                 "user": {
@@ -58,15 +61,73 @@ class User():
                 }
             }
 
-            # Matches SuccessResponseModel(data, message)
-            return SuccessResponseModel(
-                data=data_payload,
-                message="Login successful."
-            )
         except Exception as e:
             print(str(e))
-            return ErrorResponseModel(str(e), 400)
+            return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
+
+
+
+    # def login_user(self, request):
+    #     try:
+    #         user = db.query(pg_models.User).filter(pg_models.User.username == request.username).first()
+    #
+    #         # Unified handling to use ErrorResponseModel directly instead of raising raw FastAPIs exceptions
+    #         if not user or not verify_password(request.password, user.hashed_password):
+    #             return ErrorResponseModel(error="Invalid username or password.", code=status.HTTP_401_UNAUTHORIZED)
+    #
+    #         if not user.is_active:
+    #             return ErrorResponseModel(error="This account has been deactivated.", code=status.HTTP_403_FORBIDDEN)
+    #
+    #         token_payload = {"sub": str(user.username)}
+    #         access_token = create_access_token(data=token_payload)
+    #
+    #         data_payload = {
+    #             "access_token": access_token,
+    #             "token_type": "bearer",
+    #             "user": {
+    #                 "id": user.id,
+    #                 "username": user.username,
+    #                 "email": user.email
+    #             }
+    #         }
+    #
+    #         return SuccessResponseModel(data=data_payload, message="Login successful.")
+    #
+    #     except Exception as e:
+    #         print(str(e))
+    #         return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
+    def logout_user(self, request):
+        try:
+            return SuccessResponseModel(data=None, message="Logout successful.")
+        except Exception as e:
+            print(str(e))
+            return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
+
+    def get_user_by_id(self, id: int, current_user: pg_models.User, db: Session):
+        try:
+            # 1. Check if the executing user is active
+            if not current_user.is_active:
+                return ErrorResponseModel(error="Your account is deactivated.", code=status.HTTP_403_FORBIDDEN)
+
+            # 2. Query target user using the injected db session
+            user = db.query(pg_models.User).filter(pg_models.User.id == id).first()
+            if not user:
+                return ErrorResponseModel(error="User not found.", code=status.HTTP_404_NOT_FOUND)
+
+            # 3. Build response payload
+            data = {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "is_active": user.is_active,
+                "created_at": str(user.created_at)  # Converted to string for JSON serialization safety
+            }
+
+            return SuccessResponseModel(data=data, message="User retrieved successfully.")
+
+        except Exception as e:
+            print(str(e))
+            return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
+
 
 userObj = User()
-
-
