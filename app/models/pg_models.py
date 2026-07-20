@@ -42,11 +42,11 @@ class Product(Base):
 
     # Foreign Key pointing to the FileStorage table
     file_id = Column(Integer, ForeignKey('file_storage.file_id', ondelete='SET NULL'), nullable=True)
-    # Changed ondelete from 'SET NULL' to 'CASCADE'
+    
     created_by = Column(Integer, ForeignKey('user.user_id', ondelete='CASCADE'), nullable=True)
 
 
-    # Relationship remains the same
+    
     creator = relationship("User")
     # Relationship to cleanly pull image details
     image = relationship("FileStorage")
@@ -70,7 +70,7 @@ class CartItem(Base):
     cart_id = Column(Integer, ForeignKey('carts.cart_id', ondelete='CASCADE'), nullable=False)
     product_id = Column(Integer, ForeignKey('products.product_id', ondelete='CASCADE'), nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
-    price = Column(Numeric(10, 2), nullable=False)  # Snapshot of price when added
+    price = Column(Numeric(10, 2), nullable=False)  
 
     cart = relationship("Cart", back_populates="items")
     product = relationship("Product")  # Uni-directional lookup: item -> details
