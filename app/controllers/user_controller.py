@@ -1,5 +1,5 @@
 import jwt
-from fastapi import status
+from fastapi import status,HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth.auth import hash_password, verify_password, create_access_token
@@ -98,8 +98,6 @@ class User():
     #     except Exception as e:
     #         print(str(e))
     #         return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
-    from fastapi import status, HTTPException
-    from sqlalchemy.orm import Session
 
     def logout_user(self, db: Session, current_user):
         try:
