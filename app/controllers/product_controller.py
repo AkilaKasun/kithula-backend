@@ -310,14 +310,14 @@ class Product():
             self, product_id: int, db: Session, current_user: pg_models.User
     ):
         try:
-            # 1. Authentication Check
+
             if not current_user:
                 return ErrorResponseModel(
                     error="Unauthorized: Authentication required.",
                     code=status.HTTP_401_UNAUTHORIZED,
                 )
 
-            # 2. Fetch product and eager load its image relationship
+
             product = (
                 db.query(pg_models.Product)
                 .options(joinedload(pg_models.Product.image))
@@ -331,7 +331,7 @@ class Product():
                     code=status.HTTP_404_NOT_FOUND,
                 )
 
-            # 3. Store reference to the attached image before deleting product
+
             image_record = product.image
 
             # 4. Delete the product first (clears FK dependency on file_storage)
@@ -348,7 +348,7 @@ class Product():
                 if s3_key:
                     await delete_image_from_s3(s3_key)
 
-            # 6. Commit database changes
+
             db.commit()
 
             return SuccessResponseModel(
