@@ -21,13 +21,13 @@ class Product():
         """
         Uploads an image to S3 using s3_service and records its metadata in FileStorage table.
         """
-        # 1. Upload image to S3 asynchronously
+        #  Upload image to S3 asynchronously
         image_url = await upload_image(file)
 
         # Extract S3 key
         s3_key = image_url.split(f"https://{settings.AWS_BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/")[-1]
 
-        # 2. Save metadata to FileStorage table
+        #  Save  to FileStorage table
         file_storage_record = pg_models.FileStorage(
             file_name=file.filename,
             s3_key=s3_key,
@@ -71,10 +71,10 @@ class Product():
             )
 
         try:
-            # 1. Call the separate file_upload helper function
+            #  Call the separate file_upload helper function
             file_storage_record = await self.file_upload(file=file, db=db)
 
-            # 2. Create Product using request payload and file_storage_record image_url FK
+            #  Create Product using request payload and file_storage_record image_url FK
             new_product = pg_models.Product(
                 name=request.name,
                 description=request.description,
@@ -115,10 +115,6 @@ class Product():
             )
 
     async def get_all_products(self, db: Session):
-        """
-        Retrieves all active products with linked image and creator details.
-        No user authentication required.
-        """
         try:
             products = (
                 db.query(pg_models.Product)
@@ -140,7 +136,7 @@ class Product():
                     "stock": p.stock,
                     "category": p.category,
                     "is_active": p.is_active,
-                    "image_url": p.image.image_url if p.image else None,# Fetch image_url safely from the linked 'image' relationship
+                    "image_url": p.image.image_url if p.image else None,# Fetch image_url  from the linked 'image' relationship
                     "created_by": p.created_by,
                     "created_at": p.created_at.isoformat()
                     if p.created_at
@@ -198,7 +194,7 @@ class Product():
                 "stock": product.stock,
                 "category": product.category,
                 "is_active": product.is_active,
-                "image_url": product.image.image_url if product.image else None, # Fetch image_url safely from the linked 'image' relationship
+                "image_url": product.image.image_url if product.image else None, # Fetch image_url  from the linked 'image' relationship
                 "created_by": product.created_by,
                 "created_at": product.created_at.isoformat()
                 if product.created_at
@@ -239,7 +235,7 @@ class Product():
                     code=status.HTTP_401_UNAUTHORIZED,
                 )
 
-                # 2. Fetch existing product
+                #  Fetch existing product
             product = (
                 db.query(pg_models.Product)
                 .options(
@@ -334,10 +330,10 @@ class Product():
 
             image_record = product.image
 
-            # 4. Delete the product first (clears FK dependency on file_storage)
+            #  Delete the product first (clears FK dependency on file_storage)
             db.delete(product)
 
-            # 5. Delete associated FileStorage record and S3 file
+            #  Delete associated FileStorage record and S3 file
             if image_record:
                 # Extract s3_key before deleting from DB
                 s3_key = image_record.s3_key

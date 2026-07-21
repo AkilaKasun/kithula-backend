@@ -23,12 +23,7 @@ async def create_product_route(
     db: Session = Depends(db_connection),
     current_user: pg_models.User = Depends(get_current_user)
 ):
-    """
-    Creates a new product record.
-    - Parses text/form inputs into ProductCreateRequest.
-    - Receives product image file payload.
-    - Controller handles image upload to S3 and input validations.
-    """
+
     return await productObj.create_product(
         request=request,
         file=file,
