@@ -143,5 +143,17 @@ class User():
             print(str(e))
             return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
 
+    def delete_user(self, user_id: int, current_user: pg_models.User, db: Session):
+        try:
+            user = db.query(pg_models.User).filter(pg_models.User.user_id == user_id).first()
+            if not user:
+                return ErrorResponseModel(error="User not found.", code=status.HTTP_404_NOT_FOUND)
+            db.delete(user)
+            db.commit()
+            return SuccessResponseModel(data=None, message="User deleted successfully.")
+        except Exception as e:
+            print(str(e))
+            return ErrorResponseModel(error=str(e), code=status.HTTP_400_BAD_REQUEST)
+
 
 userObj = User()

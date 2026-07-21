@@ -45,3 +45,7 @@ def get_logged_in_user(
 ):
     # Pass current_user.id as the target id to reuse the get_user_by_id logic cleanly
     return userObj.get_user_by_id(user_id=current_user.user_id, current_user=current_user, db=db)
+
+@user_router.delete("/delete-user/{user_id}")
+def delete_user(user_id: int):
+    return userObj.delete_user(user_id=user_id)
