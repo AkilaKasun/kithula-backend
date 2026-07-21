@@ -1,11 +1,12 @@
 from decimal import Decimal
+from typing import Optional
 
 import jwt
 from fastapi import status, HTTPException, UploadFile
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
-from app.requests.product_requests import ProductCreateRequest
+from app.requests.product_requests import ProductCreateRequest, ProductUpdateRequest
 from app.services.s3_service import upload_image
 
 from app.auth.auth import hash_password, verify_password, create_access_token
@@ -112,5 +113,231 @@ class Product():
                 error=f"Failed to create product: {str(e)}",
                 code=status.HTTP_400_BAD_REQUEST
             )
+
+    async def get_all_products(self, db: Session):
+        """
+        Retrieves all active products with linked image and creator details.
+        No user authentication required.
+        """
+        try:
+            products = (
+                db.query(pg_models.Product)
+                .options(
+                    joinedload(pg_models.Product.image),
+                    joinedload(pg_models.Product.creator),
+                )
+                .filter(pg_models.Product.is_active == True)
+                .all()
+            )
+
+            # Convert SQLAlchemy objects to JSON-serializable dictionaries
+            products_data = [
+                {
+                    "product_id": p.product_id,
+                    "name": p.name,
+                    "description": p.description,
+                    "price": float(p.price),
+                    "stock": p.stock,
+                    "category": p.category,
+                    "is_active": p.is_active,
+                    "image_url": p.image.image_url if p.image else None,# Fetch image_url safely from the linked 'image' relationship
+                    "created_by": p.created_by,
+                    "created_at": p.created_at.isoformat()
+                    if p.created_at
+                    else None,
+                    "updated_at": p.updated_at.isoformat()
+                    if p.updated_at
+                    else None,
+                    "image_details": {
+                        "file_name": p.image.file_name,
+                        "s3_key": p.image.s3_key,
+                        "bucket_name": p.image.bucket_name,
+                    }
+                    if p.image
+                    else None,
+                }
+                for p in products
+            ]
+
+            return SuccessResponseModel(
+                data=products_data,
+                message="Products retrieved successfully.",
+                code=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return ErrorResponseModel(
+                error=f"Failed to fetch products: {str(e)}",
+                code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    async def get_product_by_id(self, product_id: int, db: Session):
+
+        try:
+            product = (
+                db.query(pg_models.Product)
+                .options(
+                    joinedload(pg_models.Product.image),
+                    joinedload(pg_models.Product.creator),
+                )
+                .filter(pg_models.Product.product_id == product_id)
+                .first()
+            )
+
+            if not product:
+                return ErrorResponseModel(
+                    error=f"Product with ID {product_id} not found.",
+                    code=status.HTTP_404_NOT_FOUND,
+                )
+
+            product_data = {
+                "product_id": product.product_id,
+                "name": product.name,
+                "description": product.description,
+                "price": float(product.price),
+                "stock": product.stock,
+                "category": product.category,
+                "is_active": product.is_active,
+                "image_url": product.image.image_url if product.image else None, # Fetch image_url safely from the linked 'image' relationship
+                "created_by": product.created_by,
+                "created_at": product.created_at.isoformat()
+                if product.created_at
+                else None,
+                "updated_at": product.updated_at.isoformat()
+                if product.updated_at
+                else None,
+                "image_details": {
+                    "file_name": product.image.file_name,
+                    "s3_key": product.image.s3_key,
+                    "bucket_name": product.image.bucket_name,
+                }
+                if product.image
+                else None,
+            }
+
+            return SuccessResponseModel(
+                data=product_data,
+                message="Product retrieved successfully.",
+                code=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return ErrorResponseModel(
+                error=f"Failed to fetch product: {str(e)}",
+                code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    async def update_product(self,product_id: int,
+        request: ProductUpdateRequest,
+        db: Session,
+        current_user: pg_models.User ,
+        file: Optional[UploadFile] = None,):
+        try:
+            if not current_user:
+                return ErrorResponseModel(
+                    error="Unauthorized: Authentication required.",
+                    code=status.HTTP_401_UNAUTHORIZED,
+                )
+
+                # 2. Fetch existing product
+            product = (
+                db.query(pg_models.Product)
+                .options(
+                    joinedload(pg_models.Product.image),
+                    joinedload(pg_models.Product.creator),
+                )
+                .filter(pg_models.Product.product_id == product_id)
+                .first()
+            )
+
+            if not product:
+                return ErrorResponseModel(
+                    error=f"Product with ID {product_id} not found.",
+                    code=status.HTTP_404_NOT_FOUND,
+                )
+            if file and file.filename:
+                file_storage_record = await self.file_upload(file=file, db=db)
+                product.file_id = file_storage_record.file_id
+
+            '''Pydantic V2 හි model_dump(exclude_unset=True) මගින් request එකේ Client විසින් පැහැදිලිවම එවන ලද Fields පමණක් Dictionary එකක් ලෙස ලබා ගනී.'''
+            update_data = request.model_dump(exclude_unset=True)
+            for key, value in update_data.items():
+                if value is not None:
+                    setattr(product, key, value)
+
+            db.commit()
+            db.refresh(product)
+
+            updated_product_data = {
+                "product_id": product.product_id,
+                "name": product.name,
+                "description": product.description,
+                "price": float(product.price),
+                "stock": product.stock,
+                "category": product.category,
+                "is_active": product.is_active,
+                "file_id": product.file_id,
+                "image_url": product.image.image_url if product.image else None,
+                "created_by": product.created_by,
+                "created_at": product.created_at.isoformat()
+                if product.created_at
+                else None,
+                "updated_at": product.updated_at.isoformat()
+                if product.updated_at
+                else None,
+                "image_details": {
+                    "file_name": product.image.file_name,
+                    "s3_key": product.image.s3_key,
+                    "bucket_name": product.image.bucket_name,
+                }
+                if product.image
+                else None,
+            }
+
+            return SuccessResponseModel(
+                data=updated_product_data,
+                message="Product updated successfully.",
+                code=status.HTTP_200_OK,
+            )
+
+
+        except Exception as e:
+            return ErrorResponseModel(
+                error=f"Failed to update product: {str(e)}",
+            )
+
+    async def delete_product(self, product_id: int, db: Session,current_user: pg_models.User):
+        try:
+
+            if not current_user:
+                return ErrorResponseModel(
+                    error="Unauthorized: Authentication required.",
+                    code=status.HTTP_401_UNAUTHORIZED,
+                )
+            product = (
+                db.query(pg_models.Product)
+            ).filter(pg_models.Product.product_id == product_id).first()
+
+            if not product:
+                return ErrorResponseModel(
+                    error=f"Product with ID {product_id} not found.",
+                    code=status.HTTP_404_NOT_FOUND,
+                )
+            db.delete(product)
+            db.commit()
+
+
+            return SuccessResponseModel(
+                    data={"product_id": product_id},
+                    message="Product deleted successfully.",
+                    code=status.HTTP_200_OK,
+                )
+
+        except Exception as e:
+            db.rollback()
+            return ErrorResponseModel(
+                error=f"Failed to delete product: {str(e)}",
+            )
+
 
 productObj = Product()

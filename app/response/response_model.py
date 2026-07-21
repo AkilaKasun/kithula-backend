@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timezone
 
 from fastapi import status
 
@@ -21,8 +21,8 @@ def ErrorResponseModel(
         "status": False,
         "data": None,
         "code": code,
-        "error_code": error_code,      # Custom app-specific error string
+        "error_code": error_code,
         "message": error,
-        "details": details or [],      # For validation errors or list of issues
+        "details": details or [],
         "timestamp": datetime.now(datetime.UTC).isoformat()
     }
