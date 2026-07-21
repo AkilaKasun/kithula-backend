@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
 from app.requests.product_requests import ProductCreateRequest, ProductUpdateRequest
-from app.services.s3_service import upload_image
+from app.services.s3_service import upload_image, delete_image_from_s3
 
 from app.auth.auth import hash_password, verify_password, create_access_token
 from app.db.postgresDB import db_connection
@@ -306,38 +306,62 @@ class Product():
                 error=f"Failed to update product: {str(e)}",
             )
 
-    async def delete_product(self, product_id: int, db: Session,current_user: pg_models.User):
+    async def delete_product(
+            self, product_id: int, db: Session, current_user: pg_models.User
+    ):
         try:
-
+            # 1. Authentication Check
             if not current_user:
                 return ErrorResponseModel(
                     error="Unauthorized: Authentication required.",
                     code=status.HTTP_401_UNAUTHORIZED,
                 )
+
+            # 2. Fetch product and eager load its image relationship
             product = (
                 db.query(pg_models.Product)
-            ).filter(pg_models.Product.product_id == product_id).first()
+                .options(joinedload(pg_models.Product.image))
+                .filter(pg_models.Product.product_id == product_id)
+                .first()
+            )
 
             if not product:
                 return ErrorResponseModel(
                     error=f"Product with ID {product_id} not found.",
                     code=status.HTTP_404_NOT_FOUND,
                 )
+
+            # 3. Store reference to the attached image before deleting product
+            image_record = product.image
+
+            # 4. Delete the product first (clears FK dependency on file_storage)
             db.delete(product)
+
+            # 5. Delete associated FileStorage record and S3 file
+            if image_record:
+                # Extract s3_key before deleting from DB
+                s3_key = image_record.s3_key
+
+                db.delete(image_record)
+
+                # Delete file asynchronously from AWS S3 bucket
+                if s3_key:
+                    await delete_image_from_s3(s3_key)
+
+            # 6. Commit database changes
             db.commit()
 
-
             return SuccessResponseModel(
-                    data={"product_id": product_id},
-                    message="Product deleted successfully.",
-                    code=status.HTTP_200_OK,
-                )
+                data={"product_id": product_id},
+                message="Product, image record, and S3 file deleted successfully.",
+                code=status.HTTP_200_OK,
+            )
 
         except Exception as e:
             db.rollback()
             return ErrorResponseModel(
                 error=f"Failed to delete product: {str(e)}",
+                code=status.HTTP_400_BAD_REQUEST,
             )
-
 
 productObj = Product()

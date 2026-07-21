@@ -49,3 +49,32 @@ async def upload_image(file: UploadFile) -> str:
             status_code=500,
             detail=f"An unexpected error occurred during image upload: {str(e)}"
         )
+async def delete_image_from_s3(s3_key: str) -> bool:
+    """
+    Asynchronously deletes an object from AWS S3 using its S3 Key.
+    Uses aioboto3 to prevent blocking the FastAPI event loop.
+    """
+    if not s3_key:
+        return False
+
+    try:
+        async with session.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION,
+        ) as s3_client:
+
+            await s3_client.delete_object(
+                Bucket=settings.AWS_BUCKET_NAME,
+                Key=s3_key,
+            )
+
+        return True
+
+    except ClientError as e:
+        print(f"AWS S3 Cloud Deletion Failure: {e.response['Error']['Message']}")
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred during S3 deletion: {str(e)}")
+        return False
