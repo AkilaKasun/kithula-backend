@@ -223,11 +223,14 @@ class Product():
                 code=status.HTTP_400_BAD_REQUEST,
             )
 
-    async def update_product(self,product_id: int,
+    async def update_product(
+        self,
+        product_id: int,
         request: ProductUpdateRequest,
         db: Session,
-        current_user: pg_models.User ,
-        file: Optional[UploadFile] = None,):
+        current_user: pg_models.User,
+        file: Optional[UploadFile] = None,
+    ):
         try:
             if not current_user:
                 return ErrorResponseModel(
@@ -235,7 +238,7 @@ class Product():
                     code=status.HTTP_401_UNAUTHORIZED,
                 )
 
-                #  Fetch existing product
+            # 1. Fetch existing product with its current image relation
             product = (
                 db.query(pg_models.Product)
                 .options(
@@ -251,16 +254,30 @@ class Product():
                     error=f"Product with ID {product_id} not found.",
                     code=status.HTTP_404_NOT_FOUND,
                 )
-            if file and file.filename:
-                file_storage_record = await self.file_upload(file=file, db=db)
-                product.file_id = file_storage_record.file_id
 
-            '''Pydantic V2 හි model_dump(exclude_unset=True) මගින් request එකේ Client විසින් පැහැදිලිවම එවන ලද Fields පමණක් Dictionary එකක් ලෙස ලබා ගනී.'''
+            # 2. Handle Image Replacement
+            if file and file.filename:
+                # Keep track of old file details before updating
+                old_file_record = product.image
+                old_s3_key = old_file_record.s3_key if old_file_record else None
+
+                # Upload the new image to S3 and save record to DB
+                new_file_record = await self.file_upload(file=file, db=db)
+                product.file_id = new_file_record.file_id
+
+                # Remove old file entry from database & S3
+                if old_file_record:
+                    db.delete(old_file_record)
+                    if old_s3_key:
+                        await delete_image_from_s3(s3_key=old_s3_key)
+
+            # 3. Apply field updates from request
             update_data = request.model_dump(exclude_unset=True)
             for key, value in update_data.items():
                 if value is not None:
                     setattr(product, key, value)
 
+            # 4. Commit database changes
             db.commit()
             db.refresh(product)
 
@@ -296,10 +313,11 @@ class Product():
                 code=status.HTTP_200_OK,
             )
 
-
         except Exception as e:
+            db.rollback()
             return ErrorResponseModel(
                 error=f"Failed to update product: {str(e)}",
+                code=status.HTTP_400_BAD_REQUEST,
             )
 
     async def delete_product(
