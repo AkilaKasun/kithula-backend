@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends,Query
 from sqlalchemy.orm import Session
 
+from app.auth.auth import get_current_user
 from app.controllers.order_controller import orderObj
 from app.db.postgresDB import db_connection
+from app.models import pg_models
 from app.requests.order_requests import CreateOrderRequest, UpdateOrderStatusRequest
 
 order_router = APIRouter( tags=["Orders"])
@@ -37,5 +39,6 @@ async def update_order_status(
 async def delete_order(
     order_id: int,
     db: Session = Depends(db_connection),
+    current_user: pg_models.User = Depends(get_current_user),
 ):
-    return await orderObj.delete_order(order_id=order_id, db=db)
+    return await orderObj.delete_order(order_id=order_id, db=db, current_user=current_user,)
