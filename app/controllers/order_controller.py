@@ -278,8 +278,14 @@ class Order:
                 code=status.HTTP_400_BAD_REQUEST,
             )
 
-    async def delete_order(self, order_id: int, db: Session):
+    async def delete_order(self, order_id: int, db: Session, current_user: pg_models.User ):
         try:
+
+            if not current_user:
+                return ErrorResponseModel(
+                    error="Unauthorized: Authentication required.",
+                    code=status.HTTP_401_UNAUTHORIZED,
+                )
 
             order = (
                 db.query(pg_models.Order)
