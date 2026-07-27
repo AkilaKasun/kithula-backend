@@ -88,7 +88,7 @@ class Order(Base):
     phone = Column(String(20), nullable=False)
     email = Column(String(150), nullable=False)
 
-    # Updated Shipping Snapshot Layout
+
     address_line1 = Column(String(255), nullable=False)
     address_line2 = Column(String(255), nullable=True)  # Explicitly optional
     district = Column(String(100), nullable=False)

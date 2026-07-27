@@ -32,3 +32,10 @@ async def update_order_status(
     db: Session = Depends(db_connection),
 ):
     return await orderObj.update_order_status(order_id, request, db)
+
+@order_router.delete("/{order_id}")
+async def delete_order(
+    order_id: int,
+    db: Session = Depends(db_connection),
+):
+    return await orderObj.delete_order(order_id=order_id, db=db)

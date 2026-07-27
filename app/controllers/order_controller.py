@@ -278,5 +278,48 @@ class Order:
                 code=status.HTTP_400_BAD_REQUEST,
             )
 
+    async def delete_order(self, order_id: int, db: Session):
+        try:
+
+            order = (
+                db.query(pg_models.Order)
+                .filter(pg_models.Order.order_id == order_id)
+                .first()
+            )
+
+            if not order:
+                return ErrorResponseModel(
+                    error="Order not found.",
+                    code=status.HTTP_404_NOT_FOUND,
+                )
+
+            # 2. Status validation: allow deletion only if Delivered or Cancelled
+            allowed_statuses = ["Delivered", "Cancelled"]
+            if order.status not in allowed_statuses:
+                return ErrorResponseModel(
+                    error=f"Cannot delete order with status '{order.status}'. Only 'Delivered' or 'Cancelled' orders can be deleted.",
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # 3. Delete related items and the order
+            for item in order.items:
+                db.delete(item)
+
+            db.delete(order)
+            db.commit()
+
+            return SuccessResponseModel(
+                data={"order_id": order_id},
+                message=f"Order #{order_id} deleted successfully.",
+                code=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            db.rollback()
+            return ErrorResponseModel(
+                error=f"Failed to delete order: {str(e)}",
+                code=status.HTTP_400_BAD_REQUEST,
+            )
+
 
 orderObj = Order()
