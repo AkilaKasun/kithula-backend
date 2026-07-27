@@ -7,6 +7,8 @@ from app.db.postgresDB import db_connection
 
 from app.routers.user_routes import user_router
 from app.routers.product_routes import product_router
+from app.routers.cart_routes import cart_router
+
 @asynccontextmanager
 async def lifespan(app: FastAPI): #start app fast api
     init_model() #call database creation
@@ -21,6 +23,7 @@ app = FastAPI(
 
 app.include_router(user_router)
 app.include_router(product_router)
+app.include_router(cart_router)
 
 @app.get("/")
 def home():
