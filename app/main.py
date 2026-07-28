@@ -4,6 +4,7 @@ import uvicorn
 from fastapi import FastAPI
 from app.db import init_model
 from app.db.postgresDB import db_connection
+from app.middleware.cors import setup_cors
 
 from app.routers.user_routes import user_router
 from app.routers.product_routes import product_router
@@ -21,6 +22,8 @@ app = FastAPI(
         lifespan=lifespan, #call init model and create database models
 
 )
+# Call the separate middleware function
+setup_cors(app)
 
 app.include_router(user_router)
 app.include_router(product_router)
