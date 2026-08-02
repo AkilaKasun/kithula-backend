@@ -17,9 +17,9 @@ async def add_to_cart(
 async def get_cart(customer_id: str, db: Session = Depends(db_connection)):
     return await cartObj.get_products_in_cart(customer_id, db)
 
-@cart_router.delete("/remove-from-cart")
+@cart_router.delete("/remove-from-cart/{cart_item_id}")
 async def remove_from_cart(cart_item_id: str, db: Session = Depends(db_connection)):
-    return await cartObj.remove_from_cart(cart_item_id, db)
+    return await cartObj.remove_cart_item(cart_item_id, db)
 
 @cart_router.put("/update-cart/{cart_item_id}")
 async def update_cart(cart_item_id:str, request: UpdateCartItemRequest, db: Session = Depends(db_connection)):
